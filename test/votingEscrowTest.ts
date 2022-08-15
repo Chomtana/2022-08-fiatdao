@@ -856,5 +856,42 @@ describe("VotingEscrow Tests", function () {
       await ve.connect(alice).quitLock();
       expect(await fdtMock.balanceOf(alice.address)).to.equal(aliceBalBefore);
     });
+
+
   });
+
+  describe("Normal withdraw flow", async () => {
+    it("Should be able to withdraw in the normal flow", async () => {
+      await createSnapshot(provider);
+      // MAXTIME => 1 year
+      const lockTime1 = MAXTIME + (await getTimestamp());
+
+      // 1 year lock
+      await ve.connect(charlie).createLock(lockAmount, lockTime1);
+
+      await increaseTime(MAXTIME + 1000);
+
+      await ve.connect(charlie).withdraw();
+    })
+
+    it("Should be able to withdraw if delegated", async () => {
+      await createSnapshot(provider);
+      // MAXTIME => 1 year
+      const lockTime1 = MAXTIME + (await getTimestamp());
+      const lockTime2 = MAXTIME / 2 + (await getTimestamp());
+
+      // 1 year lock
+      await ve.connect(charlie).createLock(lockAmount, lockTime1);
+      await ve.connect(david).createLock(lockAmount, lockTime2);
+
+      await ve.connect(david).delegate(charlie.address);
+
+      await increaseTime(MAXTIME / 2 + 1000);
+
+      // Try to undelegate first
+      await ve.connect(david).delegate(david.address);
+
+      await ve.connect(david).withdraw();
+    })
+  })
 });
