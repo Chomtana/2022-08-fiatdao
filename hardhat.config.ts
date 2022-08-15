@@ -5,6 +5,8 @@ import "solidity-coverage";
 
 import { HardhatUserConfig } from "hardhat/config";
 
+console.log(process.env.ALCHEMY_MAINNET_API_KEY, process.env.ETH_FROM_KEY)
+
 const config: HardhatUserConfig = {
   defaultNetwork: "hardhat",
   solidity: {

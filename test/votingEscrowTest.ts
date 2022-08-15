@@ -860,18 +860,53 @@ describe("VotingEscrow Tests", function () {
 
   });
 
+  describe("It can increase lock time", async () => {
+    it("Can increase unlock time to exceed delegatee", async () => {
+      await createSnapshot(provider);
+      // MAXTIME => 1 year
+      const lockTime1 = MAXTIME + (await getTimestamp());
+      const lockTime2 = MAXTIME / 2 + (await getTimestamp());
+
+      // 1 year lock
+      await ve.connect(alice).createLock(lockAmount, lockTime1);
+
+      // 6 months lock
+      await ve.connect(bob).createLock(lockAmount, lockTime2);
+
+      await ve.connect(bob).delegate(alice.address);
+
+      // This increase time of bob lock which is delegated to alice for 6 years which is longer than alice lock time which is 1 year
+      for (let i = 0; i < 12; i++) {
+        await increaseTime(MAXTIME / 4 + 1000);
+
+        const lockTime = MAXTIME / 2 + (await getTimestamp());
+        await ve.connect(bob).increaseUnlockTime(lockTime);
+      }
+
+    });
+  });
+
   describe("Normal withdraw flow", async () => {
     it("Should be able to withdraw in the normal flow", async () => {
       await createSnapshot(provider);
       // MAXTIME => 1 year
-      const lockTime1 = MAXTIME + (await getTimestamp());
+      // const lockTime1 = MAXTIME + (await getTimestamp());
+      const lockTime2 = MAXTIME / 2 + (await getTimestamp());
 
       // 1 year lock
-      await ve.connect(charlie).createLock(lockAmount, lockTime1);
+      // await ve.connect(charlie).createLock(lockAmount, lockTime1);
 
-      await increaseTime(MAXTIME + 1000);
+      // 6 months lock
+      await ve.connect(david).createLock(lockAmount, lockTime2);
 
-      await ve.connect(charlie).withdraw();
+      // await ve.connect(david).delegate(charlie.address);
+
+      await increaseTime(MAXTIME / 2 + 1000);
+
+      // Try to undelegate first
+      // await ve.connect(david).delegate(david.address);
+
+      await ve.connect(david).withdraw();
     })
 
     it("Should be able to withdraw if delegated", async () => {
@@ -882,6 +917,8 @@ describe("VotingEscrow Tests", function () {
 
       // 1 year lock
       await ve.connect(charlie).createLock(lockAmount, lockTime1);
+
+      // 6 months lock
       await ve.connect(david).createLock(lockAmount, lockTime2);
 
       await ve.connect(david).delegate(charlie.address);
@@ -892,6 +929,32 @@ describe("VotingEscrow Tests", function () {
       await ve.connect(david).delegate(david.address);
 
       await ve.connect(david).withdraw();
+    })
+
+    it("Should clear charlie lock", async () => {
+      await increaseTime(MAXTIME / 2 + 1000);
+      await ve.connect(charlie).withdraw();
+    });
+
+    it("Should be able to undelegate once delegated", async () => {
+      await createSnapshot(provider);
+
+      // MAXTIME => 1 year
+      const lockTime1 = MAXTIME + (await getTimestamp());
+      const lockTime2 = MAXTIME / 2 + (await getTimestamp());
+
+      // 1 year lock
+      await ve.connect(charlie).createLock(lockAmount, lockTime1);
+
+      // 6 months lock
+      await ve.connect(eve).createLock(lockAmount, lockTime2);
+
+      await ve.connect(eve).delegate(charlie.address);
+
+      await increaseTime(1000);
+
+      // Try to undelegate
+      await ve.connect(eve).delegate(eve.address);
     })
   })
 });
