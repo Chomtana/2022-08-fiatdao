@@ -306,7 +306,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
 
         // Go over weeks to fill history and calculate what the current point is
         uint256 iterativeTime = _floorToWeek(lastCheckpoint);
-        for (uint256 i = 0; i < 255; i++) {
+        for (uint256 i = 0; i < 255; ) {
             // Hopefully it won't happen that this won't get used in 5 years!
             // If it does, users will be able to withdraw but vote weight will be broken
             iterativeTime = iterativeTime + WEEK;
@@ -337,12 +337,19 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
                 MULTIPLIER;
 
             // when epoch is incremented, we either push here or after slopes updated below
-            epoch = epoch + 1;
+            unchecked {
+                epoch = epoch + 1;
+            }
+            
             if (iterativeTime == block.timestamp) {
                 lastPoint.blk = block.number;
                 break;
             } else {
                 pointHistory[epoch] = lastPoint;
+            }
+
+            unchecked {
+                ++i;
             }
         }
 
@@ -710,20 +717,23 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         view
         returns (uint256)
     {
-        // Binary search
-        uint256 min = 0;
-        uint256 max = _maxEpoch;
-        // Will be always enough for 128-bit numbers
-        for (uint256 i = 0; i < 128; i++) {
-            if (min >= max) break;
-            uint256 mid = (min + max + 1) / 2;
-            if (pointHistory[mid].blk <= _block) {
-                min = mid;
-            } else {
-                max = mid - 1;
+        unchecked {
+            // Binary search
+            uint256 min = 0;
+            uint256 max = _maxEpoch;
+            // Will be always enough for 128-bit numbers
+            for (uint256 i = 0; i < 128; ++i) {
+                if (min >= max) break;
+                uint256 mid = (min + max + 1) / 2;
+                if (pointHistory[mid].blk <= _block) {
+                    min = mid;
+                } else {
+                    max = mid - 1;
+                }
             }
+            return min;
         }
-        return min;
+
     }
 
     // @dev Uses binarysearch to find the most recent user point history preceeding block
@@ -734,20 +744,22 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         view
         returns (uint256)
     {
-        uint256 min = 0;
-        uint256 max = userPointEpoch[_addr];
-        for (uint256 i = 0; i < 128; i++) {
-            if (min >= max) {
-                break;
+        unchecked {
+            uint256 min = 0;
+            uint256 max = userPointEpoch[_addr];
+            for (uint256 i = 0; i < 128; ++i) {
+                if (min >= max) {
+                    break;
+                }
+                uint256 mid = (min + max + 1) / 2;
+                if (userPointHistory[_addr][mid].blk <= _block) {
+                    min = mid;
+                } else {
+                    max = mid - 1;
+                }
             }
-            uint256 mid = (min + max + 1) / 2;
-            if (userPointHistory[_addr][mid].blk <= _block) {
-                min = mid;
-            } else {
-                max = mid - 1;
-            }
+            return min;
         }
-        return min;
     }
 
     // See IVotingEscrow for documentation
@@ -831,7 +843,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         // Floor the timestamp to weekly interval
         uint256 iterativeTime = _floorToWeek(lastPoint.ts);
         // Iterate through all weeks between _point & _t to account for slope changes
-        for (uint256 i = 0; i < 255; i++) {
+        for (uint256 i = 0; i < 255; ) {
             iterativeTime = iterativeTime + WEEK;
             int128 dSlope = 0;
             // If week end is after timestamp, then truncate & leave dSlope to 0
@@ -852,11 +864,16 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
             }
             lastPoint.slope = lastPoint.slope + dSlope;
             lastPoint.ts = iterativeTime;
+
+            unchecked {
+                ++i;
+            }
         }
 
         if (lastPoint.bias < 0) {
             lastPoint.bias = 0;
         }
+
         return uint256(uint128(lastPoint.bias));
     }
 
